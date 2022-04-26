@@ -13,31 +13,32 @@ public class Main {
     public static void main(String[] args) {
         // don't need to code anything here
 
+
         /**
          * Testing sorting
          */
-        Map<String, String[]> testSort = new HashMap<>();
-        String[] rec1Data = new String[]{"3", "5.6", "11"};
-        String[] rec2Data = new String[]{"4", "7", "10"};
-        String[] rec3Data = new String[]{"5", "3", "9"};
-        String[] rec4Data = new String[]{"6", "4", "1"};
-        String[] rec5Data = new String[]{"8", "2", "3"};
-        String[] rec6Data = new String[]{"7", "1", "8"};
-        testSort.put("rec1", rec1Data);
-        testSort.put("rec2", rec2Data);
-        testSort.put("rec3", rec3Data);
-        testSort.put("rec4", rec4Data);
-        testSort.put("rec5", rec5Data);
-        testSort.put("rec6", rec6Data);
-        //System.out.println(testSort.size());
-
-        Map<String, Double> ratings = sortRatings(testSort, 0, false);
-        //System.out.println(ratings.size());
-
-        for (String s: ratings.keySet()) {
-            //System.out.println("result: ");
-            System.out.println(s + " " + ratings.get(s));
-        }
+//        Map<String, String[]> testSort = new HashMap<>();
+//        String[] rec1Data = new String[]{"3", "5.6", "11"};
+//        String[] rec2Data = new String[]{"4", "7", "10"};
+//        String[] rec3Data = new String[]{"5", "3", "9"};
+//        String[] rec4Data = new String[]{"6", "4", "1"};
+//        String[] rec5Data = new String[]{"8", "2", "3"};
+//        String[] rec6Data = new String[]{"7", "1", "8"};
+//        testSort.put("rec1", rec1Data);
+//        testSort.put("rec2", rec2Data);
+//        testSort.put("rec3", rec3Data);
+//        testSort.put("rec4", rec4Data);
+//        testSort.put("rec5", rec5Data);
+//        testSort.put("rec6", rec6Data);
+//        //System.out.println(testSort.size());
+//
+//        Map<String, Double> ratings = sortBy(testSort, 0, false);
+//        //System.out.println(ratings.size());
+//
+//        for (String s: ratings.keySet()) {
+//            //System.out.println("result: ");
+//            System.out.println(s + " " + ratings.get(s));
+//        }
         /*
         end sort testing
          */
@@ -55,65 +56,181 @@ public class Main {
 
 
     /** end **/
+    public static void makeRandomMealPlan(FunFoodFinder f) {
+        Map<String, String[]> recipeData = new HashMap<>();
+        Map<String, String> allRecipes = new HashMap<>();
+
+        String[] meals = new String[] {"Breakfast and Brunch Recipes", "Lunch Recipes",
+                "Appetizer & Snack Recipes", "Dinner Recipes", "Dessert Recipes"};
+        String baseUrl = "https://www.allrecipes.com/";
+        Map<String, String> mealTypes = makeMealTypesMap(baseUrl);
+        System.out.println("mealTypes size : " + mealTypes.size());
+
+        for (int i = 0; i < meals.length; i++) {
+            // get random food type
+            Map<String, String> foodTypes = makeFoodTypesMap(mealTypes.get(meals[i]));
+            int foodSize = foodTypes.size();
+            System.out.println("food size " + foodSize);
+            int rand = (int) (Math.random() * foodSize);
+            String foodURL = null;
+            while (foodURL == null) {
+                System.out.println("food types " + foodTypes.keySet().toString());
+                String foodNamesString = foodTypes.keySet().toString();
+                System.out.println(foodNamesString.substring(1, foodNamesString.length()-1));
+                String foodName = foodNamesString.substring(1, foodNamesString.length()-1).split(", ")[rand];
+                System.out.println("food name : " + foodName);
+                System.out.println("food url: " + foodTypes.get(foodName));
+                foodURL = foodTypes.get(foodName);
+            }
+
+            // get random recipe
+            Map<String, String> recipes = makeRecipeArtMap(foodURL);
+            int recSize = recipes.size();
+            System.out.println("rec size " + recSize);
+            String recipeName = "";
+            String recipeURL = null;
+            while (recipeURL == null) {
+                rand = (int) (Math.random() * recSize);
+                String recipeNamesString = recipes.keySet().toString();
+                recipeName = recipeNamesString.substring(1, recipeNamesString.length()-1).split(", ")[rand];
+                recipeURL = recipes.get(recipeName);
+                System.out.println("recipe name " + recipeName + " recipeURL " + recipeURL);
+            }
+
+            AllRecipesParser recipe = new AllRecipesParser(recipeURL);
+
+            recipe.populateStarRating(recipeData, recipeName, 0, 3);
+            recipe.populateCookingTime(recipeData, recipeName, 1, 3);
+            recipe.populateCalorieInfo(recipeData, recipeName, 2, 3);
+
+            allRecipes.put(recipeName, recipeURL);
+        }
+
+        /**
+         * updating FunFoodFinder object
+         */
+        f.setRecipes(allRecipes.keySet());
+        Collection<String> urls = new LinkedList<>();
+        for (String s: recipeData.keySet()) {
+            urls.add(allRecipes.get(s));
+        }
+        f.setRecipeUrls(urls);
+        f.setRecipeData(recipeData);
+
+        System.out.println(" data size " + recipeData.size());
+
+        //testing my stuff
+        for (String rec: recipeData.keySet()) {
+            System.out.println("Recipe: " + rec + "; URL: " + allRecipes.get(rec) + " " + "; star rating: " + recipeData.get(rec)[0] + "; cooking time: "
+                    + recipeData.get(rec)[1] + "; calorie info: " + recipeData.get(rec)[2]);
+        }
+        System.out.println("done");
+    }
 
     public static void doFiltering(FunFoodFinder f) {
         final String BFAST = "Breakfast and Brunch Recipes";
         final String MEAL_TYPE = chooseMealType(f);
-        System.out.println(MEAL_TYPE);
+       // System.out.println(MEAL_TYPE);
         Map<String, String[]> recipeData = new HashMap<>();
 
         String baseUrl = "https://www.allrecipes.com/";
 
         Map<String, String> mealTypes = makeMealTypesMap(baseUrl);      // Breakfast --> break url, Lunch --> lunch url, ...
 
-        String bfastUrl = mealTypes.get(BFAST);
-        Map<String, String> bfastFoods = makeFoodTypesMap(bfastUrl);
+        Map<String, String> allFiltered = new HashMap<>();
+        for (String s: mealTypes.keySet()) {
+            System.out.println(s + " " + mealTypes.get(s));
+        }
+        /**
+         * bfast & pancakes
+         */
+//        String bfastUrl = mealTypes.get(BFAST);
+//        Map<String, String> bfastFoods = makeFoodTypesMap(bfastUrl);
+//
+//        String pancakesUrl = bfastFoods.get("Pancakes");
+//        Map<String, String> panRecipes = makeRecipeArtMap(pancakesUrl);
+        /**
+         * end bfast & pancakes
+         */
+        String mealTypeUrl = mealTypes.get(MEAL_TYPE);
+        System.out.println(mealTypeUrl + " " + MEAL_TYPE);
+        Map<String, String> mealFoods = makeFoodTypesMap(mealTypeUrl);
 
-        String pancakesUrl = bfastFoods.get("Pancakes");
-        Map<String, String> panRecipes = makeRecipeArtMap(pancakesUrl);
-        //boolean yes = true;
+        //int i = 0;
 
-        int numRecipes = 0;
-        //System.out.println("buttermilk".contains("milk"));
-        Map<String, String> filtered = checkIngredients(panRecipes, f);
-        System.out.println(filtered.size());
+        for (String foodType: mealFoods.keySet()) {
+            //if (i < 3) {
 
+                String foodTypeUrl = mealFoods.get(foodType);
+                //System.out.println(foodType + " " + foodTypeUrl);
+                Map<String, String> foodRecipes = makeRecipeArtMap(foodTypeUrl);
+
+                Map<String, String> filtered = checkIngredients(foodRecipes, f);
+
+                /**
+                 * look thru filtered thing
+                 */
+                for (String recipeName : filtered.keySet()) {
+                    String recipeURL = foodRecipes.get(recipeName);
+                    //System.out.println(recipeName + " " + recipeURL);
+                    AllRecipesParser recipe = new AllRecipesParser(recipeURL);
+
+                    recipe.populateStarRating(recipeData, recipeName, 0, 3);
+                    recipe.populateCookingTime(recipeData, recipeName, 1, 3);
+                    // System.out.println(recipeName + " cooking time good");
+                    recipe.populateCalorieInfo(recipeData, recipeName, 2, 3);
+                    // System.out.println(recipeName + " calorie info good");
+                    allFiltered.put(recipeName, recipeURL);
+
+
+                }
+
+                //i++;
+//            } else {
+//                break;
+//            }
+
+        }
+        performSortBy(allFiltered, recipeData, f);
+
+
+        System.out.println(recipeData.size());
+         //testing my stuff
+        for (String rec: recipeData.keySet()) {
+            System.out.println("Recipe: " + rec + "; URL: " + allFiltered.get(rec) + " " + "; star rating: " + recipeData.get(rec)[0] + "; cooking time: "
+                    + recipeData.get(rec)[1] + "; calorie info: " + recipeData.get(rec)[2]);
+        }
+        System.out.println("done");     // sout to check when function is finished running
+
+    }
+    public static void performSortBy(Map<String, String> filtered, Map<String, String[]> recipeData, FunFoodFinder f) {
+        String choice = f.getSortBy();
+        Map<String, Double> data = new LinkedHashMap<>();
+        switch (choice) {
+            case "Ratings":
+                data = sortBy(recipeData, 0, false);
+                break;
+            case "Time":
+                data = sortBy(recipeData, 1, true);
+                break;
+            case "Calories":
+                data = sortBy(recipeData, 2, true);
+                break;
+            default:
+                break;
+        }
         /**
          * Sets recipe list and urls used in GUI
          * Call setRecipes & setRecipeUrls after we have updated stuff
          * should use filtered.keySet() ?
          */
-        f.setRecipes(filtered.keySet());
-        f.setRecipeUrls(filtered.values());
-
-
-
-        for (String rec: panRecipes.keySet()) {
-            /**
-             * uncomment below to print each recipe title
-             */
-//            if (yes) {
-//                System.out.println(rec);
-//                AllRecipesParser recPage = new AllRecipesParser(panRecipes.get(rec));
-//                ArrayList<String> ingredients = recPage.getIngreds();
-            //System.out.println("Title: " + rec + " URL: " + panRecipes.get(rec));
-            //numRecipes++;
-//            }
-//            yes = false;
-
+        f.setRecipes(data.keySet());
+        Collection<String> urls = new LinkedList<>();
+        for (String s: recipeData.keySet()) {
+            urls.add(filtered.get(s));
         }
-        for (String rec: filtered.keySet()) {
-            System.out.println("Title: " + rec);
-
-        }
-
-       // System.out.println(numRecipes);
-
-        /**
-         * Method calls - will call functions here
-         */
-        System.out.println("done");     // sout to check when function is finished running
-
+        f.setRecipeUrls(urls);
+        f.setRecipeData(recipeData);
     }
 
     /**
@@ -123,7 +240,7 @@ public class Main {
         String mealType = "";
         String userMType = f.getMtype();
         switch (userMType) {
-            case "Breakfast": mealType = "Breakfast And Brunch Recipes";
+            case "Breakfast": mealType = "Breakfast and Brunch Recipes";
                 break;
             case "Lunch": mealType = "Lunch Recipes";
                 break;
@@ -153,37 +270,46 @@ public class Main {
         List<String> urls = new ArrayList<String>(recipeMap.values());
         f.setFoodsInDietR();
         String[] dietR = f.getFoodsInDietR().split(",");
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < recipeMap.size(); i++) {
             p = new AllRecipesParser(urls.get(i));
             p.resetCurrentDoc();
             String ingredients = p.getIngreds();
-            for(int j = 0; j < include.length; j++) {
+            for (int j = 0; j < include.length; j++) {
                 if(!include[j].equals("")) {
                     if(!ingredients.contains(include[j])) {
                         recipeMap.put(foods.get(i), null);
-                        System.out.println(foods.get(i) + " doesn't contain milk");
+                        System.out.println("Inc: " + foods.get(i) + " doesn't contain " + include[j] + " so we remove it");
+                        break;
                     }
                 }
                 //System.out.println(foods.get(i));
             }
-            for(int j = 0; j < exclude.length; j++) {
-                if(!exclude[j].equals("")) {
-                    if (ingredients.contains(exclude[j])) {
-                        recipeMap.put(foods.get(i), null);
-                        System.out.println(foods.get(i) + "contains milk");
+            if (recipeMap.get(foods.get(i)) != null) {
+                for(int j = 0; j < exclude.length; j++) {
+                    if(!exclude[j].equals("")) {
+                        if (ingredients.contains(exclude[j])) {
+                            recipeMap.put(foods.get(i), null);
+                            System.out.println("Exc: " + foods.get(i) + "contains " + exclude[j] + " so we remove it");
+                            break;
+                        }
                     }
                 }
             }
-            for(int j = 0; j < dietR.length; j++) {
-                if(!dietR[j].equals("")) {
-                    if (ingredients.contains(dietR[j])) {
-                        recipeMap.put(foods.get(i), null);
+
+            if (recipeMap.get(foods.get(i)) != null) {
+                for(int j = 0; j < dietR.length; j++) {
+                    if(!dietR[j].equals("")) {
+                        if (ingredients.contains(dietR[j])) {
+                            recipeMap.put(foods.get(i), null);
+                            System.out.println("Diet: " + foods.get(i) + "contains " + dietR[j] + " so we remove it");
+                            break;
+                        }
                     }
                 }
             }
         }
         List<String> urlsFiltered = new ArrayList<String>(recipeMap.values());
-        for (int i = 0; i < recipeMap.size(); i++) {
+        for (int i = 0; i < recipeMap.size(); i++) {    // replace 10 with recipeMap.size()
             if(urlsFiltered.get(i) != null) {
                 filtered.put(foods.get(i), urls.get(i));
             }
@@ -196,6 +322,9 @@ public class Main {
      */
     private static double convertToNum(String s, int def) {
         double num = def;
+        if (s == null) {
+            System.out.println(s);
+        }
         try {
             num = Double.parseDouble(s);
             return num;
@@ -213,7 +342,7 @@ public class Main {
      * looked it up cuz wasn't sure, might change later *sigh* :(
      * https://www.javatpoint.com/how-to-sort-hashmap-by-value
      */
-    public static Map<String, Double> sortRatings(Map<String, String[]> recipeData, int index, boolean isIncr) {
+    public static Map<String, Double> sortBy(Map<String, String[]> recipeData, int index, boolean isIncr) {
         int def = 0;
 
         if (!isIncr) {

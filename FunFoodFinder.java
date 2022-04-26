@@ -30,6 +30,10 @@ public class FunFoodFinder {
     //private Map<String, String> recipes;
     private String[] recipeTitles;
     private String[] recipeUrls;
+    private Map<String, String[]> recipeData;
+    private String[] starInfo;
+    private String[] timeInfo;
+    private String[] calorieInfo;
 
     public FunFoodFinder() {
         this.mtype = "";
@@ -124,6 +128,16 @@ public class FunFoodFinder {
         this.sortBy = sortBy;
     }
 
+    public void setStarInfo(Set<String> ratings) {
+        String[] starRats =  new String[ratings.size()];
+        int index = 0;
+        for (String val: ratings) {
+            //System.out.println("in setRecipes " + rec);
+            starRats[index] = val;
+            index++;
+        }
+        starInfo = starRats;
+    }
     public void setRecipes(Set<String> titles) {
 //        if (recipes.size() == 0) {
 //            this.recipes = new HashMap<>();
@@ -170,5 +184,11 @@ public class FunFoodFinder {
 //            System.out.println("rec in getR " + recTitlesCopy[i]);
 //        }
         return recUrlsCopy;
+    }
+    public void setRecipeData(Map<String, String[]> recipeData) {
+        this.recipeData = recipeData;
+    }
+    public String getRecipeDataCell(String recName, int index) {
+        return this.recipeData.get(recName)[index];
     }
 }

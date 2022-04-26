@@ -1,6 +1,7 @@
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
@@ -119,6 +120,9 @@ public class AllRecipesParser {
      * gets titles and urls associated with that
      */
     public void makeArtMapRecipes() {
+        // limit for num recipes so parsing doesn't take too long
+        int limit = 10;
+
         if (this.currentDoc == null) {
             System.out.println("Current doc is null");
             return;
@@ -127,11 +131,12 @@ public class AllRecipesParser {
         for (Element art: artElts) {
             //System.out.println(art.text());
             String classTag = art.attr("class");
-            if(classTag.equals("card__title elementFont__resetHeading")) {
+            if(classTag.equals("card__title elementFont__resetHeading") && this.articleMap.size() < limit) {
                 String artTitle = art.text();
                 Element parent = art.parent();
                 String artUrl = parent.attr("href");
                 //System.out.println(artTitle + " " + artUrl);
+
                 this.articleMap.put(artTitle, artUrl);
             }
         }
@@ -159,6 +164,7 @@ public class AllRecipesParser {
      * Updates articleMap when visiting next pages
      */
     public void visitNextPages(int count) {
+        int limit = 10;
         if (this.currentDoc == null) {
             System.out.println("Current doc is null");
             return;
@@ -170,7 +176,7 @@ public class AllRecipesParser {
             //System.out.println(art.text());
             String classTag = art.attr("class");
             //System.out.println(classTag);
-            if(classTag.equals("tout__titleLink elementFont__toutLink")) {
+            if(classTag.equals("tout__titleLink elementFont__toutLink") && this.articleMap.size() < limit) {
                 //System.out.println("yea");
                 String artTitle = art.text();
                 String artUrl = art.attr("href");
@@ -188,7 +194,7 @@ public class AllRecipesParser {
             }
         }
         // check if need to visit next pages
-       if (count < 3) {
+       if (count < 1) {
            if (nextUrl.length() > 0) {
                //System.out.println("here");
                this.baseUrl = nextUrl;
@@ -288,6 +294,138 @@ public class AllRecipesParser {
             }
         }
         return imgUrl;
+    }
+
+    /**
+     * star rating
+     * Assumes connection with a recipe Document
+     * Modifies recipeData
+     */
+
+    public void populateStarRating(Map<String, String[]> recipeData, String recipeName, int index, int length) {
+        double sum = 0;
+        int starCount = 5;
+        int count = 0;
+        Elements artElts = this.currentDoc.select("li");
+        for (Element art: artElts) {
+            String classTag = art.attr("class");
+            //System.out.println(classTag); recipeNutritionSectionBlock
+            Elements children = art.children();
+            if (classTag.equals("rating") && starCount > 0) {
+                if (art.text().contains("star values: ")) {
+                    int startIndex = art.text().indexOf("star values: ") + "star values: ".length();
+                    String value = art.text().substring(startIndex);
+                    try {
+                        int numValue = Integer.parseInt(value);
+                        count += numValue;
+                        sum += numValue * starCount;
+                        //System.out.println("num " + numValue + " count " + count + " sum " + sum);
+                        starCount--;
+                    } catch (NumberFormatException e) {
+                        // do nothing
+                    }
+                }
+            }
+        }
+        double avg = 0;
+        if (count > 0) {
+            avg = sum / count;
+            avg = Math.round(avg * 100.0) / 100.0;
+        }
+        if (!recipeData.containsKey(recipeName)) {
+            recipeData.put(recipeName, new String[length]);
+        }
+        recipeData.get(recipeName)[index] = "" + avg;
+    }
+
+    /**
+     * cooking time
+     * Assumes connection with a recipe Document
+     * Modifies recipeData
+     */
+    public void populateCookingTime(Map<String, String[]> recipeData, String recipeName, int index, int length) {
+        Elements artElts = this.currentDoc.select("div");
+        for (Element art: artElts) {
+            String classTag = art.attr("class");
+            //System.out.println(classTag); recipeNutritionSectionBlock
+            Elements children = art.children();
+            if (classTag.equals("recipe-meta-item")) {
+                String timeInfo = art.text();
+                String totalTime = "";
+                if (timeInfo.contains("total: ")) {
+                    int startIndex = timeInfo.indexOf("total: ") + "total: ".length();
+                    totalTime = timeInfo.substring(startIndex);
+                    //System.out.println(totalTime);
+                    if (!recipeData.containsKey(recipeName)) {
+                        recipeData.put(recipeName, new String[length]);
+                    }
+                    recipeData.get(recipeName)[index] = "" + timeHelper(totalTime);
+                    return;
+                }
+            }
+        }
+        if (recipeData.get(recipeName)[index] == null) {
+            recipeData.get(recipeName)[index] = "60";   // default value of 60 mins
+        }
+    }
+
+    /**
+     * takes in a String of words representing time amount
+     * and returns the number version
+     * (example: 1 hr 15 mins --> 75)
+     * @param timeWords
+     * @return
+     */
+    public int timeHelper(String timeWords) {
+        int time = 0;
+        String[] timeArray = timeWords.split(" ");
+        for (int i = 0; i < timeArray.length - 1; i++) {
+            try {
+                int duration = Integer.parseInt(timeArray[i]);
+                if (timeArray[i + 1].equals("hr")) {
+                    time += duration * 60;
+                } else if (timeArray[i + 1].equals("mins")) {
+                    time += duration;
+                }
+            } catch (NumberFormatException e) {
+                // do nothing
+            }
+        }
+        return time;
+    }
+
+    /**
+     * calorie info
+     * Assumes connection with a recipe Document
+     * Modifies recipeData
+     */
+
+    public void populateCalorieInfo(Map<String, String[]> recipeData, String recipeName, int index, int length) {
+        Elements artElts = this.currentDoc.select("div");
+        for (Element art: artElts) {
+            String classTag = art.attr("class");
+            //System.out.println(classTag); recipeNutritionSectionBlock
+            Elements children = art.children();
+            if(classTag.equals("recipeNutritionSectionBlock")) {
+                //System.out.println("art text: " + art.text());
+                for (Element child: children) {
+                    String nutrInfo = child.text();
+                    String calCount = "";
+                    if (nutrInfo.contains("calories")) {
+                        int endIndex = nutrInfo.indexOf("calories");
+                        calCount = nutrInfo.substring(0, endIndex);
+                        if (!recipeData.containsKey(recipeName)) {
+                            recipeData.put(recipeName, new String[length]);
+                        }
+                        recipeData.get(recipeName)[index] = calCount;
+                        return;
+                    }
+                }
+            }
+        }
+        if (recipeData.get(recipeName)[index] == null) {
+            recipeData.get(recipeName)[index] = "500 ";   // default value of 500 calories
+        }
     }
 
 
